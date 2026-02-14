@@ -1,0 +1,14 @@
+.venv
+.git
+.gitignore
+.env
+__pycache__
+*.pyc
+*.pyo
+logs/
+*.egg-info
+build/
+dist/
+.vscode
+.gemini
+*.md

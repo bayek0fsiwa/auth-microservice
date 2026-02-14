@@ -1,0 +1,15 @@
+fastapi
+asyncpg
+email-validator
+gunicorn
+pydantic-settings
+python-json-logger
+python-multipart
+sqlmodel
+uvicorn
+aiosqlite
+argon2-cffi
+PyJWT
+slowapi
+alembic
+redis>=5.0.0
