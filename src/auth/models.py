@@ -6,13 +6,19 @@ from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
+from enum import StrEnum
+
+class UserRole(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
+
+
 class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, index=True)
     full_name: str
-    full_name: str
     email: str = Field(index=True, unique=True)
     hashed_password: str
-    role: str = Field(default="user")
+    role: UserRole = Field(default=UserRole.USER)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

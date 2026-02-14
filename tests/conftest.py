@@ -6,7 +6,7 @@ os.environ["JWT_SECRET_KEY"] = "test-secret-key-not-for-production"
 # Mock Redis to avoid connection errors during import
 os.environ["REDIS_URL"] = "redis://mock:6379/0"
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import sys
 
 class FakeRedis:
@@ -59,6 +59,12 @@ async def override_get_session():
         yield session
 
 
+@pytest_asyncio.fixture
+async def session():
+    async with test_session_maker() as session:
+        yield session
+
+
 app.dependency_overrides[get_session] = override_get_session
 
 
@@ -93,3 +99,10 @@ async def auth_headers(client: AsyncClient) -> dict:
     )
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture(autouse=True)
+def mock_celery_task():
+    """Mock Celery task to prevent actual broker connection attempts during tests."""
+    with patch("src.worker.tasks.send_verification_email.delay") as mock:
+        yield mock

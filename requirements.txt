@@ -12,4 +12,5 @@ argon2-cffi
 PyJWT
 slowapi
 alembic
-redis>=5.0.0
+redis==5.0.1
+celery[redis]==5.3.6

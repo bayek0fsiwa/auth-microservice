@@ -59,11 +59,14 @@ class ChangePasswordRequest(BaseModel):
         return _validate_password(v)
 
 
+from src.auth.models import UserRole
+
+
 class UserResponse(BaseModel):
     id: str
     full_name: str
     email: str
-    role: str
+    role: UserRole
     is_active: bool
     created_at: datetime
     updated_at: datetime

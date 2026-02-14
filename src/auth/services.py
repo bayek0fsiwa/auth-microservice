@@ -27,6 +27,7 @@ from src.auth.security import (
 from src.configs.config import get_settings
 from src.configs.db import SessionDep, get_session
 from src.utils.logger import get_logger
+from src.worker.tasks import send_verification_email
 
 logger = get_logger(__name__)
 bearer_scheme = HTTPBearer()
@@ -103,10 +104,8 @@ class AuthService:
             await session.commit()
             await session.refresh(user)
         except IntegrityError:
-            # Check if it was a duplicate email violation
-            # We can also check existing_user first to be "nice", but IntegrityError is the robust check.
-            # To be user-friendly, we can still do the select first, but relying on DB constraint is safer for race conditions.
-            # Here we combine both: we trust the DB constraint.
+            # Check if it was a duplicate email violation.
+            # While we could check existing_user first, relying on DB constraint is safer for race conditions.
             await session.rollback()
             # Double check if it was indeed the email
             statement = select(User).where(User.email == request.email)
@@ -130,6 +129,11 @@ class AuthService:
             )
 
         logger.info("User registered", extra={"user_id": user.id, "email": user.email})
+        
+        # Trigger background email task
+        # In a real app, generate a real verification token here
+        send_verification_email.delay(user.email, "mock-verification-token")
+        
         token_data = {"sub": user.id}
         return {
             "access_token": create_access_token(token_data),

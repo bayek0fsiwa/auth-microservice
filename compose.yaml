@@ -24,6 +24,18 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  worker:
+    build: .
+    command: celery -A src.worker.celery_app.app worker --loglevel=info
+    environment:
+      - DATABASE_URI=postgresql+asyncpg://postgres:postgres@db:5432/auth_db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:
