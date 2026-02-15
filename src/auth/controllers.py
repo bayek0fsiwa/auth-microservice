@@ -32,6 +32,13 @@ auth_router = APIRouter(prefix="/auth", tags=["auth"])
 @auth_router.post("/register", response_model=TokenResponse)
 @limiter.limit(settings.RATE_LIMIT_REGISTER)
 async def register(request: Request, response: Response, body: RegisterRequest, session: SessionDep):
+    """
+    Register a new user.
+
+    - **email**: Valid email address
+    - **password**: min 8 chars
+    - **full_name**: User's full name
+    """
     token_data = await AuthService.register(body, session)
     response.set_cookie(
         key="access_token",
@@ -62,6 +69,11 @@ async def register(request: Request, response: Response, body: RegisterRequest, 
 @auth_router.post("/login", response_model=TokenResponse)
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
 async def login(request: Request, response: Response, body: LoginRequest, session: SessionDep):
+    """
+    Login with email and password.
+
+    Sets `access_token`, `refresh_token`, and `csrf_token` in HttpOnly/Secure cookies.
+    """
     token_data = await AuthService.login(body, session)
     response.set_cookie(
         key="access_token",
@@ -117,6 +129,9 @@ async def logout(
 
 @auth_router.post("/refresh", response_model=TokenResponse)
 async def refresh(response: Response, body: RefreshTokenRequest, session: SessionDep):
+    """
+    Refresh an expired access token using a valid refresh token.
+    """
     token_data = await AuthService.refresh_token(body.refresh_token, session)
     response.set_cookie(
         key="access_token",

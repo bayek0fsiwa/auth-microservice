@@ -42,6 +42,19 @@ logger = get_logger(__name__)
 class AuthService:
     @staticmethod
     async def register(request: RegisterRequest, session: AsyncSession) -> dict:
+        """
+        Register a new user.
+
+        Args:
+            request (RegisterRequest): The registration details (email, password, full_name).
+            session (AsyncSession): The database session.
+
+        Returns:
+            dict: Access and refresh tokens.
+
+        Raises:
+            HTTPException: 400 if email exists, 503 if database error.
+        """
         try:
             # Hash password asynchronously before transaction
             hashed_pw = await hash_password(request.password)
@@ -99,6 +112,19 @@ class AuthService:
 
     @staticmethod
     async def login(request: LoginRequest, session: AsyncSession) -> dict:
+        """
+        Authenticate a user and issue tokens.
+
+        Args:
+            request (LoginRequest): Login credentials (email, password).
+            session (AsyncSession): Database session.
+
+        Returns:
+            dict: Access and refresh tokens.
+
+        Raises:
+            HTTPException: 401 if invalid credentials, 423 if account locked, 403 if inactive.
+        """
         try:
             statement = select(User).where(User.email == request.email)
             result = await session.exec(statement)
@@ -185,6 +211,12 @@ class AuthService:
 
     @staticmethod
     async def logout(token: str) -> None:
+        """
+        Logout a user by blacklisting their access token.
+
+        Args:
+            token (str): The JWT access token.
+        """
         """Blacklist the current access token so it can't be reused."""
         try:
             payload = decode_token(token)
@@ -198,6 +230,19 @@ class AuthService:
 
     @staticmethod
     async def refresh_token(refresh_token_str: str, session: AsyncSession) -> dict:
+        """
+        Refresh an access token using a valid refresh token.
+
+        Args:
+            refresh_token_str (str): The refresh token string.
+            session (AsyncSession): Database session.
+
+        Returns:
+            dict: New access and refresh tokens.
+
+        Raises:
+            HTTPException: 401 if token is invalid, expired, or revoked.
+        """
         try:
             payload = decode_token(refresh_token_str)
             if payload.get("type") != "refresh":
@@ -253,6 +298,9 @@ class AuthService:
     async def change_password(
         request: ChangePasswordRequest, user: User, session: AsyncSession
     ) -> None:
+        """
+        Change the authenticated user's password.
+        """
         if not await verify_password(request.old_password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -277,6 +325,9 @@ class AuthService:
     async def update_user(
         user: User, request: UserUpdateRequest, session: AsyncSession
     ) -> User:
+        """
+        Update user profile information.
+        """
         if request.email:
             # Check for existing email if changing
             if request.email != user.email:
