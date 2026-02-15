@@ -9,13 +9,22 @@ VALID_USER = {
     "password": "StrongPass1",
 }
 
+
+def get_csrf_headers(client: AsyncClient) -> dict:
+    """Extract CSRF token from cookies and return as header dict."""
+    token = client.cookies.get("csrf_token")
+    if not token:
+        return {}
+    return {"X-CSRF-Token": token}
+
 @pytest.mark.asyncio
 async def test_update_profile(client: AsyncClient):
     # Register and login
-    await client.post(f"{BASE}/register", json=VALID_USER)
+    await client.post(f"{BASE}/register", json=VALID_USER, headers=get_csrf_headers(client))
     login_res = await client.post(
         f"{BASE}/login",
         json={"email": VALID_USER["email"], "password": VALID_USER["password"]},
+        headers=get_csrf_headers(client),
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -24,7 +33,7 @@ async def test_update_profile(client: AsyncClient):
     res = await client.patch(
         f"{BASE}/me",
         json={"full_name": "Updated Name"},
-        headers=headers,
+        headers={**headers, **get_csrf_headers(client)},
     )
     assert res.status_code == 200
     assert res.json()["full_name"] == "Updated Name"
@@ -41,10 +50,11 @@ async def test_update_password(client: AsyncClient):
         "email": "pass@test.com",
         "password": "StrongPass1",
     }
-    await client.post(f"{BASE}/register", json=user)
+    await client.post(f"{BASE}/register", json=user, headers=get_csrf_headers(client))
     login_res = await client.post(
         f"{BASE}/login",
         json={"email": user["email"], "password": user["password"]},
+        headers=get_csrf_headers(client),
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -54,7 +64,7 @@ async def test_update_password(client: AsyncClient):
     res = await client.patch(
         f"{BASE}/me",
         json={"password": new_pass},
-        headers=headers,
+        headers={**headers, **get_csrf_headers(client)},
     )
     assert res.status_code == 200
     
@@ -62,6 +72,7 @@ async def test_update_password(client: AsyncClient):
     res = await client.post(
         f"{BASE}/login",
         json={"email": user["email"], "password": new_pass},
+        headers=get_csrf_headers(client),
     )
     assert res.status_code == 200
 
@@ -69,6 +80,7 @@ async def test_update_password(client: AsyncClient):
     res = await client.post(
         f"{BASE}/login",
         json={"email": user["email"], "password": user["password"]},
+        headers=get_csrf_headers(client),
     )
     assert res.status_code == 401
 
@@ -80,16 +92,17 @@ async def test_delete_profile(client: AsyncClient):
         "email": "delete@test.com",
         "password": "StrongPass1",
     }
-    await client.post(f"{BASE}/register", json=user)
+    await client.post(f"{BASE}/register", json=user, headers=get_csrf_headers(client))
     login_res = await client.post(
         f"{BASE}/login",
         json={"email": user["email"], "password": user["password"]},
+        headers=get_csrf_headers(client),
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Delete
-    res = await client.delete(f"{BASE}/me", headers=headers)
+    res = await client.delete(f"{BASE}/me", headers={**headers, **get_csrf_headers(client)})
     assert res.status_code == 200
     assert "deleted" in res.json()["message"]
 

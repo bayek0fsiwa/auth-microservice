@@ -86,12 +86,18 @@ async def setup_db():
 async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        await ac.get("/")  # Seed CSRF cookie
         yield ac
 
 
 @pytest_asyncio.fixture
 async def auth_headers(client: AsyncClient) -> dict:
     """Register a user and return auth headers with a valid access token."""
+    headers = {}
+    csrf_token = client.cookies.get("csrf_token")
+    if csrf_token:
+        headers["X-CSRF-Token"] = csrf_token
+
     r = await client.post(
         "/api/v1/auth/register",
         json={
@@ -99,6 +105,7 @@ async def auth_headers(client: AsyncClient) -> dict:
             "email": "fixture@test.com",
             "password": "StrongPass1",
         },
+        headers=headers,
     )
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

@@ -10,7 +10,11 @@ from src.auth.controllers import auth_router, limiter
 from src.configs.config import get_settings
 from src.configs.db import SessionDep
 from src.utils.logger import get_logger
-from src.utils.middleware import RequestIDMiddleware, SecureHeadersMiddleware
+from src.utils.middleware import (
+    CSRFMiddleware,
+    RequestIDMiddleware,
+    SecureHeadersMiddleware,
+)
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -47,6 +51,12 @@ app.add_middleware(
 )
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecureHeadersMiddleware)
+app.add_middleware(
+    CSRFMiddleware,
+    secret=settings.CSRF_SECRET,
+    cookie_name=settings.CSRF_COOKIE_NAME,
+    header_name=settings.CSRF_HEADER_NAME,
+)
 
 
 async def db_is_healthy(session: SessionDep) -> bool:
@@ -75,3 +85,6 @@ async def db_health_check(session: SessionDep):
             detail="database unreachable",
         )
     return {"status": "ok"}
+
+
+

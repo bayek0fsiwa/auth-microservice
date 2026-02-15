@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False  # Set to True in production (HTTPS)
     COOKIE_SAMESITE: str = "lax"
 
+    # CSRF Settings
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    CSRF_HEADER_NAME: str = "X-CSRF-Token"
+    CSRF_SECRET: str = "csrf-secret-key"  # Change in production
+
+
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

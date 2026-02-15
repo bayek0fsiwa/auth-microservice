@@ -1,5 +1,14 @@
 import pytest
 from unittest.mock import patch
+from httpx import AsyncClient
+
+
+def get_csrf_headers(client: AsyncClient) -> dict:
+    """Extract CSRF token from cookies and return as header dict."""
+    token = client.cookies.get("csrf_token")
+    if not token:
+        return {}
+    return {"X-CSRF-Token": token}
 
 @pytest.mark.asyncio
 async def test_register_triggers_email(client):
@@ -14,6 +23,7 @@ async def test_register_triggers_email(client):
                 "password": "Password123",
                 "full_name": "New User"
             },
+            headers=get_csrf_headers(client),
         )
         
         assert response.status_code == 200

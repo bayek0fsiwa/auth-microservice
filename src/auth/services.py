@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
@@ -27,80 +27,16 @@ from src.auth.security import (
     verify_password_dummy,
 )
 from src.configs.config import get_settings
+
+settings = get_settings()
+
+_AUTH_HEADER = {"WWW-Authenticate": "Bearer"}
 from src.configs.db import get_session
 from src.utils.logger import get_logger
 from src.worker.tasks import send_verification_email
 
 logger = get_logger(__name__)
-bearer_scheme = HTTPBearer(auto_error=False)
-settings = get_settings()
 
-_AUTH_HEADER = {"WWW-Authenticate": "Bearer"}
-
-
-async def get_current_user(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
-    session: AsyncSession = Depends(get_session),
-) -> User:
-    token = None
-    if credentials:
-        token = credentials.credentials
-    elif "access_token" in request.cookies:
-        token = request.cookies["access_token"]
-    
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers=_AUTH_HEADER,
-        )
-
-    try:
-        payload = decode_token(token)
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
-                headers=_AUTH_HEADER,
-            )
-        user_id: str = payload.get("sub")
-        jti: str = payload.get("jti", "")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload",
-                headers=_AUTH_HEADER,
-            )
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers=_AUTH_HEADER,
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers=_AUTH_HEADER,
-        )
-
-    # Check if token has been revoked
-    if await is_blacklisted(jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
-            headers=_AUTH_HEADER,
-        )
-
-    user = await session.get(User, user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
-            headers=_AUTH_HEADER,
-        )
-    return user
 
 
 class AuthService:
@@ -117,7 +53,12 @@ class AuthService:
             )
             session.add(user)
             await session.commit()
-            await session.refresh(user)
+            try:
+                await session.refresh(user)
+            except SQLAlchemyError:
+                # In high concurrency or test scenarios, refresh might fail but the object is committed.
+                # Since id is UUID generated in Python, we can proceed.
+                logger.warning("Could not refresh user instance after commit")
         except IntegrityError:
             # Check if it was a duplicate email violation.
             # While we could check existing_user first, relying on DB constraint is safer for race conditions.

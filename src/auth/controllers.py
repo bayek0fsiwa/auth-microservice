@@ -16,9 +16,11 @@ from src.auth.schemas import (
     UserResponse,
     UserUpdateRequest,
 )
-from src.auth.services import AuthService, get_current_user
+from src.auth.dependencies import RoleChecker, get_current_user
+from src.auth.services import AuthService
 from src.configs.config import get_settings
 from src.configs.db import SessionDep
+import secrets
 
 settings = get_settings()
 
@@ -45,6 +47,15 @@ async def register(request: Request, response: Response, body: RegisterRequest, 
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
     )
+    # Set CSRF token (readable by JS)
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
     return token_data
 
 
@@ -63,6 +74,15 @@ async def login(request: Request, response: Response, body: LoginRequest, sessio
         key="refresh_token",
         value=token_data["refresh_token"],
         httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    # Set CSRF token (readable by JS)
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
     )
@@ -91,6 +111,7 @@ async def logout(
     
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    response.delete_cookie(settings.CSRF_COOKIE_NAME)
     return {"message": "Successfully logged out"}
 
 
@@ -108,6 +129,15 @@ async def refresh(response: Response, body: RefreshTokenRequest, session: Sessio
         key="refresh_token",
         value=token_data["refresh_token"],
         httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    # Rotate CSRF token on refresh
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
     )
@@ -141,3 +171,8 @@ async def delete_profile(
 ):
     await AuthService.delete_user(user, credentials.credentials, session)
     return {"message": "User profile deleted successfully"}
+
+
+@auth_router.get("/admin/stats", dependencies=[Depends(RoleChecker(["admin"]))])
+async def admin_stats():
+    return {"message": "Admin area", "stats": "Everything is good"}
