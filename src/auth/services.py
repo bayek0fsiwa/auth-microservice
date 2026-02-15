@@ -25,7 +25,7 @@ from src.auth.security import (
     verify_password_dummy,
 )
 from src.configs.config import get_settings
-from src.configs.db import SessionDep, get_session
+from src.configs.db import get_session
 from src.utils.logger import get_logger
 from src.worker.tasks import send_verification_email
 
@@ -131,7 +131,7 @@ class AuthService:
         logger.info("User registered", extra={"user_id": user.id, "email": user.email})
         
         # Trigger background email task
-        # In a real app, generate a real verification token here
+        # In production, generate a real verification token here
         send_verification_email.delay(user.email, "mock-verification-token")
         
         token_data = {"sub": user.id}

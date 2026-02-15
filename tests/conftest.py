@@ -6,7 +6,7 @@ os.environ["JWT_SECRET_KEY"] = "test-secret-key-not-for-production"
 # Mock Redis to avoid connection errors during import
 os.environ["REDIS_URL"] = "redis://mock:6379/0"
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import sys
 
 class FakeRedis:
@@ -30,24 +30,27 @@ mock_redis = MagicMock()
 mock_redis.from_url.return_value = FakeRedis()
 sys.modules["redis.asyncio"] = mock_redis
 
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
-from sqlmodel.ext.asyncio.session import AsyncSession
+import pytest_asyncio  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+from sqlmodel import SQLModel  # noqa: E402
+from sqlmodel.ext.asyncio.session import AsyncSession  # noqa: E402
 
-from src.auth.blacklist import clear as clear_blacklist
-from src.auth.models import User  # noqa: F401
-from src.auth.controllers import limiter
-from src.configs.db import get_session
-from src.main import app
+from src.auth.blacklist import clear as clear_blacklist  # noqa: E402
+from src.auth.models import User  # noqa: F401, E402
+from src.auth.controllers import limiter  # noqa: E402
+from src.configs.db import get_session  # noqa: E402
+from src.main import app  # noqa: E402
 
 # Disable rate limiting during tests
 limiter.enabled = False
 
+from sqlalchemy.pool import StaticPool
+
 test_engine = create_async_engine(
     "sqlite+aiosqlite://",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 test_session_maker = async_sessionmaker(
     test_engine, class_=AsyncSession, expire_on_commit=False

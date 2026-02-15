@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 from src.configs.config import get_settings
+from src.auth.models import UserRole
 
 
 def _validate_password(password: str) -> str:
@@ -59,7 +60,7 @@ class ChangePasswordRequest(BaseModel):
         return _validate_password(v)
 
 
-from src.auth.models import UserRole
+
 
 
 class UserResponse(BaseModel):

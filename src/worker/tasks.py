@@ -8,7 +8,7 @@ logger = get_task_logger(__name__)
 def send_verification_email(email: str, token: str):
     """
     Simulates sending a verification email.
-    In a real app, this would use SMTP or an email service (SES, SendGrid).
+    In prodcution, this would use SMTP or an email service (SES, SendGrid).
     """
     logger.info(f"Preparing to send verification email to {email}")
     logger.info(f"Verification Link: https://example.com/verify?token={token}")

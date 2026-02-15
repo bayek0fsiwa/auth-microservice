@@ -25,6 +25,8 @@ logs/
 .htmlcov/
 htmlcov/
 .pytest_cache/
+.ruff_cache/
 
 # TODO
 TODO.md
+*.pem

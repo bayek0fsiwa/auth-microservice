@@ -14,3 +14,4 @@ slowapi
 alembic
 redis==5.0.1
 celery[redis]==5.3.6
+cryptography

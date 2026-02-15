@@ -1,12 +1,13 @@
 import asyncio
 import pytest
 from httpx import AsyncClient
+from uuid import uuid4
 
 BASE = "/api/v1/auth"
 
 VALID_USER = {
     "full_name": "Concurrent User",
-    "email": "concurrent@test.com",
+    "email": f"concurrent_{uuid4()}@test.com",
     "password": "StrongPass1",
 }
 
@@ -23,6 +24,7 @@ async def test_register_race_condition(client: AsyncClient):
     responses = await asyncio.gather(register(), register())
     
     status_codes = [r.status_code for r in responses]
+    print(f"Status codes: {status_codes}")
     assert 200 in status_codes
     assert 400 in status_codes
     

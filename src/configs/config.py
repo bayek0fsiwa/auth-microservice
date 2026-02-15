@@ -1,14 +1,18 @@
 from functools import lru_cache
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     DATABASE_URI: str
-    JWT_SECRET_KEY: str
-    JWT_ALGORITHM: str = "HS256"
+    JWT_SECRET_KEY: str  # Kept for backward compatibility or alternate use
+    JWT_ALGORITHM: str = "RS256"
+    JWT_PRIVATE_KEY: str | None = None
+    JWT_PUBLIC_KEY: str | None = None
+    JWT_PRIVATE_KEY_PATH: str | None = None
+    JWT_PUBLIC_KEY_PATH: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
@@ -34,6 +38,16 @@ class Settings(BaseSettings):
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
+
+    @model_validator(mode="after")
+    def load_keys_from_path(self) -> "Settings":
+        if not self.JWT_PRIVATE_KEY and self.JWT_PRIVATE_KEY_PATH:
+            with open(self.JWT_PRIVATE_KEY_PATH, "r") as f:
+                self.JWT_PRIVATE_KEY = f.read()
+        if not self.JWT_PUBLIC_KEY and self.JWT_PUBLIC_KEY_PATH:
+            with open(self.JWT_PUBLIC_KEY_PATH, "r") as f:
+                self.JWT_PUBLIC_KEY = f.read()
+        return self
 
 
 @lru_cache()

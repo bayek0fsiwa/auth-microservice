@@ -3,8 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.auth.models import User, UserRole
-from src.auth.permissions import RoleChecker
+from src.auth.models import User
 from src.auth.schemas import (
     ChangePasswordRequest,
     LoginRequest,
