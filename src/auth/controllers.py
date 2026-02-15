@@ -15,6 +15,7 @@ from src.auth.schemas import (
     TokenResponse,
     UserResponse,
     UserUpdateRequest,
+    PublicKeyResponse,
 )
 from src.auth.dependencies import RoleChecker, get_current_user
 from src.auth.services import AuthService
@@ -191,3 +192,18 @@ async def delete_profile(
 @auth_router.get("/admin/stats", dependencies=[Depends(RoleChecker(["admin"]))])
 async def admin_stats():
     return {"message": "Admin area", "stats": "Everything is good"}
+
+
+@auth_router.get("/public-key", response_model=PublicKeyResponse)
+async def get_public_key():
+    """
+    Get the public key for token verification.
+
+    This endpoint is public and can be used by other microservices to verify JWT signatures.
+    """
+    if not settings.JWT_PUBLIC_KEY:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=501, detail="Public key not available (Symmetric keys in use?)")
+    
+    return {"public_key": settings.JWT_PUBLIC_KEY}
+

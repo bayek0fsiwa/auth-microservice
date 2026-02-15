@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URI: str
-    JWT_SECRET_KEY: str  # Kept for backward compatibility or alternate use
+    JWT_SECRET_KEY: str | None = None  # Kept for backward compatibility or alternate use
     JWT_ALGORITHM: str = "RS256"
     JWT_PRIVATE_KEY: str | None = None
     JWT_PUBLIC_KEY: str | None = None

@@ -100,3 +100,7 @@ class UserUpdateRequest(BaseModel):
     @classmethod
     def validate_password(cls, v: Optional[str]) -> Optional[str]:
         return _validate_password(v) if v else None
+
+
+class PublicKeyResponse(BaseModel):
+    public_key: str

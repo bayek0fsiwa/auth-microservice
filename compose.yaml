@@ -5,12 +5,16 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URI=postgresql+asyncpg://postgres:postgres@db:5432/auth_db
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ALGORITHM=HS256
+      - JWT_ALGORITHM=RS256
+      - JWT_PRIVATE_KEY_PATH=/app/private.pem
+      - JWT_PUBLIC_KEY_PATH=/app/public.pem
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - REFRESH_TOKEN_EXPIRE_DAYS=7
       - CORS_ORIGINS=["http://localhost:3000"]
       - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./private.pem:/app/private.pem:ro
+      - ./public.pem:/app/public.pem:ro
     depends_on:
       db:
         condition: service_healthy
@@ -29,8 +33,13 @@ services:
     command: celery -A src.worker.celery_app.app worker --loglevel=info
     environment:
       - DATABASE_URI=postgresql+asyncpg://postgres:postgres@db:5432/auth_db
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=RS256
+      - JWT_PRIVATE_KEY_PATH=/app/private.pem
+      - JWT_PUBLIC_KEY_PATH=/app/public.pem
       - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./private.pem:/app/private.pem:ro
+      - ./public.pem:/app/public.pem:ro
     depends_on:
       redis:
         condition: service_healthy
