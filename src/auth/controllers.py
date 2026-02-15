@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -21,20 +23,50 @@ from src.configs.db import SessionDep
 settings = get_settings()
 
 limiter = Limiter(key_func=get_remote_address)
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @auth_router.post("/register", response_model=TokenResponse)
 @limiter.limit(settings.RATE_LIMIT_REGISTER)
-async def register(request: Request, body: RegisterRequest, session: SessionDep):
-    return await AuthService.register(body, session)
+async def register(request: Request, response: Response, body: RegisterRequest, session: SessionDep):
+    token_data = await AuthService.register(body, session)
+    response.set_cookie(
+        key="access_token",
+        value=token_data["access_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=token_data["refresh_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    return token_data
 
 
 @auth_router.post("/login", response_model=TokenResponse)
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
-async def login(request: Request, body: LoginRequest, session: SessionDep):
-    return await AuthService.login(body, session)
+async def login(request: Request, response: Response, body: LoginRequest, session: SessionDep):
+    token_data = await AuthService.login(body, session)
+    response.set_cookie(
+        key="access_token",
+        value=token_data["access_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=token_data["refresh_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    return token_data
 
 
 @auth_router.get("/me", response_model=UserResponse)
@@ -44,16 +76,42 @@ async def me(user: User = Depends(get_current_user)):
 
 @auth_router.post("/logout", response_model=MessageResponse)
 async def logout(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    _user: User = Depends(get_current_user),
+    request: Request,
+    response: Response,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ):
-    await AuthService.logout(credentials.credentials)
+    token = None
+    if credentials:
+        token = credentials.credentials
+    elif "access_token" in request.cookies:
+        token = request.cookies["access_token"]
+    
+    if token:
+        await AuthService.logout(token)
+    
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
     return {"message": "Successfully logged out"}
 
 
 @auth_router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshTokenRequest, session: SessionDep):
-    return await AuthService.refresh_token(body.refresh_token, session)
+async def refresh(response: Response, body: RefreshTokenRequest, session: SessionDep):
+    token_data = await AuthService.refresh_token(body.refresh_token, session)
+    response.set_cookie(
+        key="access_token",
+        value=token_data["access_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=token_data["refresh_token"],
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+    return token_data
 
 
 @auth_router.post("/change-password", response_model=MessageResponse)

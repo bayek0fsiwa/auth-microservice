@@ -1,7 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+from typing import Optional
+
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
@@ -30,17 +32,30 @@ from src.utils.logger import get_logger
 from src.worker.tasks import send_verification_email
 
 logger = get_logger(__name__)
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 settings = get_settings()
 
 _AUTH_HEADER = {"WWW-Authenticate": "Bearer"}
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    token = credentials.credentials
+    token = None
+    if credentials:
+        token = credentials.credentials
+    elif "access_token" in request.cookies:
+        token = request.cookies["access_token"]
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers=_AUTH_HEADER,
+        )
+
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
