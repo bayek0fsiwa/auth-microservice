@@ -19,6 +19,9 @@ class TestRegister:
         assert "access_token" in data
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
+        # Check cookies
+        assert "access_token" in r.cookies
+        assert "refresh_token" in r.cookies
 
     async def test_register_duplicate_email(self, client: AsyncClient):
         await client.post(f"{BASE}/register", json=VALID_USER)
@@ -65,6 +68,9 @@ class TestLogin:
         )
         assert r.status_code == 200
         assert "access_token" in r.json()
+        # Check cookies
+        assert "access_token" in r.cookies
+        assert "refresh_token" in r.cookies
 
     async def test_login_wrong_password(self, client: AsyncClient):
         await client.post(f"{BASE}/register", json=VALID_USER)
@@ -138,6 +144,23 @@ class TestMe:
         assert r.status_code == 401
         assert r.headers.get("WWW-Authenticate") == "Bearer"
 
+    async def test_me_cookie_auth(self, client: AsyncClient):
+        """Test authentication via cookie (browser flow)."""
+        # Register and login to set cookies in client
+        await client.post(f"{BASE}/register", json=VALID_USER)
+        login_res = await client.post(
+            f"{BASE}/login",
+            json={"email": VALID_USER["email"], "password": VALID_USER["password"]},
+        )
+        assert "access_token" in login_res.cookies
+        
+        # Request /me WITHOUT Authorization header
+        # client context handles cookies automatically
+        r = await client.get(f"{BASE}/me")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["email"] == VALID_USER["email"]
+
 
 # ── Refresh ──────────────────────────────────────────────────────────
 
@@ -148,6 +171,8 @@ class TestRefresh:
         r = await client.post(f"{BASE}/refresh", json={"refresh_token": rt})
         assert r.status_code == 200
         assert "access_token" in r.json()
+        assert "access_token" in r.cookies
+        assert "refresh_token" in r.cookies
 
     async def test_refresh_invalid_token(self, client: AsyncClient):
         r = await client.post(f"{BASE}/refresh", json={"refresh_token": "bad"})
@@ -206,6 +231,25 @@ class TestLogout:
         r = await client.get(f"{BASE}/me", headers=auth_headers)
         assert r.status_code == 401
         assert "revoked" in r.json()["detail"].lower()
+
+    async def test_logout_clears_cookies(self, client: AsyncClient):
+        # Login to get cookies
+        await client.post(f"{BASE}/register", json=VALID_USER)
+        await client.post(
+            f"{BASE}/login",
+            json={"email": VALID_USER["email"], "password": VALID_USER["password"]},
+        )
+        
+        # Logout
+        r = await client.post(f"{BASE}/logout")
+        assert r.status_code == 200
+        
+        # Verify cookies are cleared (expired or removed)
+        # httpx client.cookies should update on response
+        # Asserting that accessing a protected route fails is the best behavioral check.
+        
+        r_me = await client.get(f"{BASE}/me")
+        assert r_me.status_code == 401
 
 
 # ── Health Checks ────────────────────────────────────────────────────
