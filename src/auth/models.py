@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, String
 from sqlmodel import Field, SQLModel
 
 
@@ -18,7 +18,7 @@ class User(SQLModel, table=True):
     full_name: str
     email: str = Field(index=True, unique=True)
     hashed_password: str
-    role: UserRole = Field(default=UserRole.USER)
+    role: UserRole = Field(default=UserRole.USER, sa_column=Column(String))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
